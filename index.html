@@ -76,6 +76,11 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 .msg-ok{background:#E8F5E9;color:#2E7D32;font-size:12px;padding:7px 11px;border-radius:var(--r);margin-top:6px;display:none}.msg-ok.on{display:block}
 .msg-err{background:#FFEBEE;color:#C62828;font-size:12px;padding:7px 11px;border-radius:var(--r);margin-top:6px;display:none}.msg-err.on{display:block}
 .locked-msg{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;font-size:13px;color:var(--ink3)}.locked-msg svg{flex-shrink:0;opacity:.5}
+
+/* NOTES */
+.note-bubble{background:#EDE9FE;border-radius:var(--r);padding:10px 14px;position:relative}
+.note-bubble-text{font-size:13px;line-height:1.5;color:var(--ink)}
+.note-bubble-meta{font-size:10px;color:#5B21B6;margin-top:5px;font-weight:500}
 .photo-actions{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .photo-btn{display:flex;align-items:center;gap:8px;padding:12px 20px;border:2px dashed var(--line);border-radius:var(--r);cursor:pointer;color:var(--ink3);font-size:13px;font-weight:500;background:var(--surface);transition:border-color .15s,color .15s;flex:1;min-width:140px;justify-content:center}.photo-btn:hover{border-color:var(--ink);color:var(--ink)}.photo-btn input{display:none}
 .photo-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:10px}
@@ -228,7 +233,28 @@ async function loadJobs(){
   document.getElementById('loading-overlay').style.display='none';
 }
 function stepCls(s){if(!s)return 'b-hold';if(s.includes('04.'))return 'b-buyout';if(s.includes('03.'))return 'b-approval';if(s.includes('05.'))return 'b-dowork';if(s.includes('06.'))return 'b-pending';if(s.includes('02.'))return 'b-approved';return 'b-hold';}
-function stepLbl(s){if(!s)return s;if(s.includes('01.'))return 'Need Estimate';if(s.includes('04.'))return 'Approved';if(s.includes('03.')&&s.toLowerCase().includes('material'))return 'Materials Ordered';if(s.includes('03.'))return 'Waiting for Approval';if(s.includes('05.'))return 'Scheduled';if(s.includes('06.'))return 'Pending NTE/CO';if(s.includes('07.'))return 'Bill';if(s.includes('08.'))return 'Job Complete';if(s.includes('00.'))return 'On Hold';const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;}
+function stepLbl(s){
+  if(!s)return s;
+  if(s.includes('01.'))return 'Need Estimate';
+  if(s.includes('02.'))return 'Need Estimate';
+  if(s.includes('03.'))return 'Waiting for Approval';
+  if(s.includes('04.')){
+    // If vendor has set Material on Order override it
+    return 'Approved';
+  }
+  if(s.includes('05.'))return 'Scheduled';
+  if(s.includes('06.'))return 'Pending';
+  if(s.includes('07.'))return 'Invoice Submitted';
+  if(s.includes('08.'))return 'Complete';
+  if(s.includes('00.'))return 'On Hold';
+  const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;
+}
+function stepLblBadge(step, vStep){
+  // If vendor has set Material on Order, show that regardless of PM step
+  if(vStep&&vStep.toLowerCase().includes('material'))return 'Material on Order';
+  return stepLbl(step);
+}
+function vStepLbl(s){if(!s)return s;if(s.includes('00.'))return 'Waiting for Approval';if(s.includes('01.'))return 'Need Estimate';if(s.includes('02.'))return 'Estimate Submitted';if(s.includes('03.')&&s.toLowerCase().includes('waiting'))return 'Waiting for Approval';if(s.includes('03.'))return 'Waiting for Approval';if(s.includes('04.'))return 'Approved';if(s.includes('05.'))return 'Material on Order';if(s.includes('06.'))return 'Awaiting Schedule';if(s.includes('07.'))return 'Scheduled';if(s.includes('08.'))return 'Need Invoice';if(s.includes('09.'))return 'Awaiting Confirmation';const m=(s||'').match(/^\d+\.\s*(.+)/);return m?m[1]:s;}
 function fmtD(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtM(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -243,22 +269,48 @@ function renderJobList(){
   const list=document.getElementById('job-list-all'),empty=document.getElementById('jobs-empty');
   if(!f.length){list.innerHTML='';empty.style.display='block';return;}empty.style.display='none';list.innerHTML=f.map(j=>buildCard(j,'all')).join('');
 }
+// Customer lookup by store code prefix
+const CUSTOMERS={
+  'DSS':'Devon Self Storage',
+  'PS':'Public Storage',
+  'CS':'CubeSmart',
+  'CH':'Clear Home',
+  'AXS':'AXS Self Storage',
+  'SK':'Storage King',
+  'MP':'Metro Storage',
+  'CH':'Clear Home'
+};
+function getCustomer(store){
+  if(!store)return null;
+  const prefix=store.split(' ')[0].toUpperCase();
+  return CUSTOMERS[prefix]||null;
+}
+
 function buildCard(j,pfx){
   const canSched=j.step.includes('04.')||j.step.includes('05.');
-  return `<div class="jcard" id="jc-${pfx}-${j.id}"><div class="jhead" onclick="toggleCard('${pfx}',${j.id})"><span class="jnum">#${j.proj}</span><div class="jtitle"><div class="jname">${esc(j.name)}</div><div class="jaddr">${esc(j.address)}</div></div><div class="jbadges"><span class="badge ${stepCls(j.step)}">${stepLbl(j.step)}</span></div><svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+  return `<div class="jcard" id="jc-${pfx}-${j.id}"><div class="jhead" onclick="toggleCard('${pfx}',${j.id})"><span class="jnum">${esc(j.store)}</span><div class="jtitle"><div class="jname">${esc(j.name)}</div><div class="jaddr">${esc(j.address)}</div></div><div class="jbadges"><span class="badge ${stepCls(j.step)}">${stepLblBadge(j.step,j.vStep)}</span></div><svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
 <div class="jbody">
 <div class="btabs"><button class="btab active" onclick="btab(event,'${pfx}',${j.id},'info')">Job Info</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'photos')">Photos</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'est')">Estimate</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'sched')">Schedule</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'bill')">Billing</button></div>
 <div class="bpanel active" id="binfo-${pfx}-${j.id}"><div class="igrid">
   <div class="iitem full"><label>Scope of Work</label><p>${esc(j.scope)||'—'}</p></div>
+  ${getCustomer(j.store)?`<div class="iitem"><label>Customer</label><p style="font-weight:500">${getCustomer(j.store)}</p><p style="font-size:12px;color:var(--ink3)">${esc(j.store)}</p></div>`:''}
   <div class="iitem"><label>Site Address</label><p>${esc(j.address)}</p><a class="maplnk" href="https://maps.google.com/?q=${encodeURIComponent(j.address)}" target="_blank"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open in Maps</a></div>
   ${j.gate?`<div class="iitem"><label>Gate / Access Code</label><div class="gate-chip"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>${esc(j.gate)}</div></div>`:''}
-  <div class="iitem"><label>Status</label><span class="badge ${stepCls(j.step)}" style="font-size:11px">${stepLbl(j.step)}</span></div>
+  <div class="iitem"><label>Status</label><span class="badge ${stepCls(j.step)}" style="font-size:11px">${stepLblBadge(j.step,j.vStep)}</span></div>
   ${j.vStep?`<div class="iitem"><label>Your Next Step</label><span style="font-size:11px;padding:3px 9px;border-radius:20px;background:#EDE9FE;color:#5B21B6;font-weight:500">${esc(j.vStep)}</span></div>`:''}
   ${j.nte>0?`<div class="iitem"><label>Current NTE</label><div class="nte-chip">${fmtM(j.nte)}</div></div>`:''}
   ${j.quoted&&parseFloat(j.quoted)>0?`<div class="iitem"><label>Your Submitted Bid</label><div class="nte-chip" style="background:#E3F2FD;color:#1565C0">${fmtM(j.quoted)}</div></div>`:''}
   ${j.pm?`<div class="iitem full"><label>Project Manager</label><div class="pm-contact">${pmHTML(j.pm)}</div></div>`:''}
 </div>
 <div class="att-section"><label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Attachments</label><div id="att-${pfx}-${j.id}" class="att-msg">Loading…</div></div>
+<div class="att-section">
+  <label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Notes</label>
+  <div id="notes-history-${pfx}-${j.id}" style="margin-top:8px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px"></div>
+  <textarea class="ni" id="note-inp-${pfx}-${j.id}" placeholder="Add a note visible to your project manager…" style="min-height:54px;margin-top:4px"></textarea>
+  <div style="margin-top:8px"><button class="btn pri" onclick="doNote(${j.id},'${pfx}')">Post Note</button></div>
+  <div class="msg-ok" id="note-ok-${pfx}-${j.id}">✓ Note added</div>
+  <div class="msg-err" id="note-er-${pfx}-${j.id}">Error — please try again</div>
+</div>
 </div>
 <div class="bpanel" id="bphotos-${pfx}-${j.id}"><div class="asec"><h4>Take or Upload Photos</h4><div class="photo-actions"><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take Photo<input type="file" accept="image/*" capture="environment" onchange="previewPhoto(this,'${pfx}',${j.id})"></label><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Image<input type="file" accept="image/*" multiple onchange="previewPhoto(this,'${pfx}',${j.id})"></label></div><div id="photo-preview-${pfx}-${j.id}" class="photo-preview"></div><div style="margin-top:10px"><button class="btn pri" onclick="uploadPhotos(${j.id},'${pfx}')">Upload to Job</button></div><div class="msg-ok" id="photo-ok-${pfx}-${j.id}">✓ Photos uploaded</div><div class="msg-err" id="photo-er-${pfx}-${j.id}">Upload failed</div></div></div>
 <div class="bpanel" id="best-${pfx}-${j.id}"><div class="asec"><h4>Submit Bid / Estimate</h4><div class="irow"><input class="ii" type="number" id="bid-a-${pfx}-${j.id}" placeholder="Bid amount ($)" min="0" step="0.01" ${j.quoted?`value="${j.quoted}" style="background:var(--paper);color:var(--c-dowork);font-weight:600"`:''}></div><textarea class="ni" id="bid-n-${pfx}-${j.id}" placeholder="Bid notes or breakdown (optional)…" style="min-height:54px"></textarea><div class="upl-area" onclick="document.getElementById('bid-f-${pfx}-${j.id}').click()" style="margin-top:8px"><input type="file" id="bid-f-${pfx}-${j.id}" accept="image/*,.pdf" onchange="document.getElementById('bid-fn-${pfx}-${j.id}').textContent=this.files[0].name"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><div id="bid-fn-${pfx}-${j.id}">Attach estimate document</div></div><div style="margin-top:8px"><button class="btn pri" onclick="doBid(${j.id},'${pfx}')">Submit Estimate</button></div><div class="msg-ok" id="bid-ok-${pfx}-${j.id}">✓ Estimate submitted</div><div class="msg-err" id="bid-er-${pfx}-${j.id}">Error — please try again</div></div></div>
@@ -296,6 +348,25 @@ async function uploadPhotos(id,pfx){
 }
 async function ssUpdateRow(rowId,colName,val){const colId=COL_MAP[colName];if(!colId)return false;return ssPut('/sheets/'+SHEET_ID+'/rows',[{id:rowId,cells:[{columnId:colId,value:val}]}]);}
 async function ssComment(rowId,text){return ssPost('/sheets/'+SHEET_ID+'/rows/'+rowId+'/discussions',{comment:{text:text}});}
+async function doNote(id,pfx){
+  const txt=document.getElementById('note-inp-'+pfx+'-'+id).value.trim();
+  const ok=document.getElementById('note-ok-'+pfx+'-'+id),er=document.getElementById('note-er-'+pfx+'-'+id);
+  ok.classList.remove('on');er.classList.remove('on');
+  if(!txt){er.textContent='Please enter a note.';er.classList.add('on');return;}
+  const btn=ok.previousElementSibling;btn.disabled=true;btn.textContent='Posting…';
+  try{
+    const res=await ssComment(id,`[${VENDOR_NAME}] ${txt}`);
+    if(res){
+      ok.classList.add('on');
+      document.getElementById('note-inp-'+pfx+'-'+id).value='';
+      // Add note bubble to history
+      const history=document.getElementById('notes-history-'+pfx+'-'+id);
+      const now=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+      history.innerHTML+=`<div class="note-bubble"><div class="note-bubble-text">${esc(txt)}</div><div class="note-bubble-meta">${VENDOR_NAME} · ${now}</div></div>`;
+    }else er.classList.add('on');
+  }catch{er.classList.add('on');}
+  btn.disabled=false;btn.textContent='Post Note';
+}
 async function doVendorStep(id,pfx){
   const v=document.getElementById('vns-'+pfx+'-'+id).value;
   const ok=document.getElementById('vns-ok-'+pfx+'-'+id),er=document.getElementById('vns-er-'+pfx+'-'+id);
@@ -345,8 +416,28 @@ async function doSched(id,pfx){
     // Also update Vendor Next Step to Scheduled
     await ssUpdateRow(id,'Vendor Next Step','07. Scheduled');
     await ssComment(id,`[${VENDOR_NAME}] Scheduled work for ${fmtD(dt)}`);
-    ok.classList.add('on');const j=JOBS.find(x=>x.id===id);if(j){j.start=dt;j.step='05.Do Work';}
-  }catch{er.classList.add('on');}btn.disabled=false;btn.textContent='Save Schedule Date';
+    // Update local job data
+    const j=JOBS.find(x=>x.id===id);
+    if(j){j.start=dt;j.step='05.Do Work';j.vStep='07. Scheduled';}
+    // Update badge on card header in real time
+    const card=document.getElementById('jc-'+pfx+'-'+id);
+    if(card){
+      const badge=card.querySelector('.jbadges .badge');
+      if(badge){badge.className='badge '+stepCls('05.Do Work');badge.textContent=stepLblBadge('05.Do Work','');}
+    }
+    // Update schedule display in the panel
+    const schedPanel=document.getElementById('bsched-'+pfx+'-'+id);
+    if(schedPanel){
+      const display=schedPanel.querySelector('.sched-none');
+      if(display){display.outerHTML=`<div class="sched-display"><div><div class="sched-date">${fmtD(dt)}</div><div class="sched-label">Currently scheduled</div></div></div>`;}
+      const existing=schedPanel.querySelector('.sched-display .sched-date');
+      if(existing)existing.textContent=fmtD(dt);
+    }
+    ok.textContent=`✓ Scheduled for ${fmtD(dt)}`;ok.classList.add('on');
+    // Refresh stats
+    buildAllStats();
+  }catch{er.classList.add('on');}
+  btn.disabled=false;btn.textContent='Save Schedule Date';
 }
 async function doInvoice(id,pfx){
   const amt=document.getElementById('inv-a-'+pfx+'-'+id).value,num=document.getElementById('inv-n-'+pfx+'-'+id).value;
