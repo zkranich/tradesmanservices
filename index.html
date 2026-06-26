@@ -40,6 +40,8 @@
 .stat-n{font-size:26px;font-weight:600;letter-spacing:-1px;color:var(--ink)}.stat-l{font-size:11px;color:var(--ink3);margin-top:2px}
 .job-list{display:flex;flex-direction:column;gap:8px}.empty-msg{text-align:center;padding:60px 20px;color:var(--ink3);font-size:14px}
 .jcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--rlg);overflow:hidden;transition:border-color .15s,box-shadow .15s}
+.jcard.has-update{border-color:#EF4444;box-shadow:0 0 0 1px #EF4444}
+.update-tag{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:#EF4444;background:#FEF2F2;padding:2px 8px;border-radius:10px;margin-right:6px;white-space:nowrap;text-transform:uppercase;letter-spacing:.03em}
 .jcard:hover{border-color:rgba(24,24,26,.2);box-shadow:0 2px 14px rgba(0,0,0,.07)}.jcard.open{border-color:rgba(24,24,26,.22);box-shadow:0 4px 22px rgba(0,0,0,.09)}
 .jhead{padding:14px 18px;cursor:pointer;display:flex;align-items:center;gap:12px}
 .jnum{font-family:var(--mono);font-size:11px;color:var(--ink3);background:var(--paper);padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
@@ -286,9 +288,66 @@ function getCustomer(store){
   return CUSTOMERS[prefix]||null;
 }
 
+// UPDATE TRACKING (localStorage) — flags status changes and new notes since last visit
+const SEEN_KEY='seenJobState_'+VENDOR_NAME.replace(/\s+/g,'_');
+let DISCUSSION_COUNTS={}; // rowId -> comment count, populated at load
+function getSeenState(){
+  try{return JSON.parse(localStorage.getItem(SEEN_KEY)||'{}');}catch{return {};}
+}
+function setSeenState(state){
+  try{localStorage.setItem(SEEN_KEY,JSON.stringify(state));}catch{}
+}
+function getJobUpdateFlags(j){
+  const seen=getSeenState();
+  const prev=seen[j.id];
+  const curCount=DISCUSSION_COUNTS[j.id]||0;
+  if(!prev)return {statusChanged:false,hasNote:false};
+  const statusChanged=prev.step!==j.step||prev.vStep!==j.vStep;
+  const hasNote=curCount>(prev.commentCount||0);
+  return {statusChanged,hasNote};
+}
+function markJobSeen(j){
+  const seen=getSeenState();
+  seen[j.id]={step:j.step,vStep:j.vStep,commentCount:DISCUSSION_COUNTS[j.id]||0};
+  setSeenState(seen);
+}
+function primeSeenState(){
+  const seen=getSeenState();
+  let changed=false;
+  JOBS.forEach(j=>{
+    if(!seen[j.id]){
+      seen[j.id]={step:j.step,vStep:j.vStep,commentCount:DISCUSSION_COUNTS[j.id]||0};
+      changed=true;
+    }
+  });
+  if(changed)setSeenState(seen);
+}
+async function loadAllDiscussionCounts(){
+  try{
+    let allDiscussions=[],page=1;
+    while(true){
+      const d=await ssGet('/sheets/'+SHEET_ID+'/discussions?include=comments&page='+page+'&pageSize=100&numericDates=true');
+      const data=d.data||[];
+      allDiscussions=allDiscussions.concat(data);
+      if(!d.totalPages||page>=d.totalPages)break;
+      page++;
+    }
+    const counts={};
+    allDiscussions.forEach(disc=>{
+      const rowId=disc.parentId; // for ROW-level discussions, parentId = the row id
+      if(!rowId)return;
+      const n=(disc.comments||[]).length;
+      counts[rowId]=(counts[rowId]||0)+n;
+    });
+    DISCUSSION_COUNTS=counts;
+  }catch(e){console.log('Could not load discussion counts:',e);}
+}
+
 function buildCard(j,pfx){
   const canSched=j.step.includes('04.')||j.step.includes('05.');
-  return `<div class="jcard" id="jc-${pfx}-${j.id}"><div class="jhead" onclick="toggleCard('${pfx}',${j.id})"><span class="jnum">${esc(j.store)}</span><div class="jtitle"><div class="jname">${esc(j.name)}</div><div class="jaddr">${esc(j.address)}</div></div><div class="jbadges"><span class="badge ${stepCls(j.step)}">${stepLblBadge(j.step,j.vStep)}</span></div><svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+  const flags=getJobUpdateFlags(j);
+  const hasUpdate=flags.statusChanged||flags.hasNote;
+  return `<div class="jcard${hasUpdate?' has-update':''}" id="jc-${pfx}-${j.id}"><div class="jhead" onclick="toggleCard('${pfx}',${j.id})"><span class="jnum">${esc(j.store)}</span><div class="jtitle"><div class="jname">${flags.hasNote?'<span class="update-tag">New Note</span>':''}${flags.statusChanged?'<span class="update-tag">Status Changed</span>':''}${esc(j.name)}</div><div class="jaddr">${esc(j.address)}</div></div><div class="jbadges"><span class="badge ${stepCls(j.step)}">${stepLblBadge(j.step,j.vStep)}</span></div><svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
 <div class="jbody">
 <div class="btabs"><button class="btab active" onclick="btab(event,'${pfx}',${j.id},'info')">Job Info</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'photos')">Photos</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'est')">Estimate</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'sched')">Schedule</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'bill')">Billing</button></div>
 <div class="bpanel active" id="binfo-${pfx}-${j.id}"><div class="igrid">
@@ -305,7 +364,7 @@ function buildCard(j,pfx){
 <div class="att-section"><label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Attachments</label><div id="att-${pfx}-${j.id}" class="att-msg">Loading…</div></div>
 <div class="att-section">
   <label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink3)">Notes</label>
-  <div id="notes-history-${pfx}-${j.id}" style="margin-top:8px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px"></div>
+  <div id="notes-history-${pfx}-${j.id}" style="margin-top:8px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px"><div class="att-msg" style="padding:8px 0">Loading conversation…</div></div>
   <textarea class="ni" id="note-inp-${pfx}-${j.id}" placeholder="Add a note visible to your project manager…" style="min-height:54px;margin-top:4px"></textarea>
   <div style="margin-top:8px"><button class="btn pri" onclick="doNote(${j.id},'${pfx}')">Post Note</button></div>
   <div class="msg-ok" id="note-ok-${pfx}-${j.id}">✓ Note added</div>
@@ -324,7 +383,47 @@ function buildCard(j,pfx){
 </div>
 </div></div>`;
 }
-function toggleCard(pfx,id){const el=document.getElementById('jc-'+pfx+'-'+id);el.classList.toggle('open');if(el.classList.contains('open'))loadAtt(id,pfx);}
+function toggleCard(pfx,id){
+  const el=document.getElementById('jc-'+pfx+'-'+id);
+  el.classList.toggle('open');
+  if(el.classList.contains('open')){
+    loadAtt(id,pfx);loadDiscussion(id,pfx);
+    // Clear update highlight once opened
+    const j=JOBS.find(x=>x.id===id);
+    if(j){
+      markJobSeen(j);
+      el.classList.remove('has-update');
+      const tags=el.querySelectorAll('.update-tag');
+      tags.forEach(t=>t.remove());
+    }
+  }
+}
+
+let loadedDisc={};
+async function loadDiscussion(id,pfx){
+  const key=pfx+'-'+id;
+  if(loadedDisc[key])return;loadedDisc[key]=true;
+  const history=document.getElementById('notes-history-'+pfx+'-'+id);
+  if(!history)return;
+  try{
+    const d=await ssGet('/sheets/'+SHEET_ID+'/rows/'+id+'/discussions?include=comments');
+    const discussions=d.data||[];
+    if(!discussions.length){history.innerHTML='';return;}
+    // Gather all comments across all discussions on this row, sorted oldest first
+    let allComments=[];
+    discussions.forEach(disc=>{
+      (disc.comments||[]).forEach(c=>allComments.push(c));
+    });
+    allComments.sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+    if(!allComments.length){history.innerHTML='';return;}
+    history.innerHTML=allComments.map(c=>{
+      const author=c.createdBy?.name||c.createdBy?.email||'Unknown';
+      const when=new Date(c.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+      const isVendor=author.toLowerCase().includes(VENDOR_NAME.toLowerCase())||(c.text||'').includes('['+VENDOR_NAME+']');
+      return `<div class="note-bubble"${isVendor?'':' style="background:#F0F0F0"'}><div class="note-bubble-text">${esc(c.text||'')}</div><div class="note-bubble-meta"${isVendor?'':' style="color:var(--ink3)"'}>${esc(author)} · ${when}</div></div>`;
+    }).join('');
+  }catch{/* silent fail, keep empty */}
+}
 function btab(e,pfx,id,tab){const body=document.getElementById('jc-'+pfx+'-'+id).querySelector('.jbody');body.querySelectorAll('.btab').forEach(b=>b.classList.remove('active'));body.querySelectorAll('.bpanel').forEach(p=>p.classList.remove('active'));e.target.classList.add('active');document.getElementById('b'+tab+'-'+pfx+'-'+id).classList.add('active');}
 async function loadAtt(id,pfx){
   const key=pfx+'-'+id;if(loadedAtt[key])return;loadedAtt[key]=true;
@@ -348,6 +447,26 @@ async function uploadPhotos(id,pfx){
 }
 async function ssUpdateRow(rowId,colName,val){const colId=COL_MAP[colName];if(!colId)return false;return ssPut('/sheets/'+SHEET_ID+'/rows',[{id:rowId,cells:[{columnId:colId,value:val}]}]);}
 async function ssComment(rowId,text){return ssPost('/sheets/'+SHEET_ID+'/rows/'+rowId+'/discussions',{comment:{text:text}});}
+async function ssNotifyPM(rowId,pmEmail,message){
+  // Send row to PM via Smartsheet's send row API — triggers email notification
+  try{
+    await ssPost('/sheets/'+SHEET_ID+'/rows/'+rowId+'/emails',[{
+      sendTo:[{email:pmEmail}],
+      subject:'Vendor Note — '+message.substring(0,60),
+      message:message,
+      includeAttachments:false,
+      includeCellLinks:false,
+      columnIds:Object.values(COL_MAP).slice(0,6)
+    }]);
+  }catch(e){console.log('PM notify failed:',e);}
+}
+// PM Smartsheet emails for @mentions
+const PM_SMARTSHEET_EMAILS={
+  'Zak Kranich':'zkranich@farmerdevelopment.com',
+  'Jacob Dafoe':'jdafoe@farmerdevelopment.com',
+  'Connor Thomas':'cthomas@farmerdevelopment.com'
+};
+
 async function doNote(id,pfx){
   const txt=document.getElementById('note-inp-'+pfx+'-'+id).value.trim();
   const ok=document.getElementById('note-ok-'+pfx+'-'+id),er=document.getElementById('note-er-'+pfx+'-'+id);
@@ -355,14 +474,20 @@ async function doNote(id,pfx){
   if(!txt){er.textContent='Please enter a note.';er.classList.add('on');return;}
   const btn=ok.previousElementSibling;btn.disabled=true;btn.textContent='Posting…';
   try{
-    const res=await ssComment(id,`[${VENDOR_NAME}] ${txt}`);
+    // Build @mention for the job's PM so they get notified in Smartsheet
+    const j=JOBS.find(x=>x.id===id);
+    const pmEmail=j&&PM_SMARTSHEET_EMAILS[j.pm]?PM_SMARTSHEET_EMAILS[j.pm]:null;
+    const mention=pmEmail?`@${pmEmail} `:'';
+    const comment=`${mention}[${VENDOR_NAME}] ${txt}`;
+    const res=await ssComment(id,comment);
     if(res){
+      // Also send email notification to PM
+      if(pmEmail) await ssNotifyPM(id, pmEmail, `[${VENDOR_NAME}] left a note on job #${j.proj} — ${j.name}: "${txt}"`);
       ok.classList.add('on');
       document.getElementById('note-inp-'+pfx+'-'+id).value='';
-      // Add note bubble to history
-      const history=document.getElementById('notes-history-'+pfx+'-'+id);
-      const now=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
-      history.innerHTML+=`<div class="note-bubble"><div class="note-bubble-text">${esc(txt)}</div><div class="note-bubble-meta">${VENDOR_NAME} · ${now}</div></div>`;
+      loadedDisc[pfx+'-'+id]=false;
+      DISCUSSION_COUNTS[id]=(DISCUSSION_COUNTS[id]||0)+1;
+      loadDiscussion(id,pfx);
     }else er.classList.add('on');
   }catch{er.classList.add('on');}
   btn.disabled=false;btn.textContent='Post Note';
@@ -536,7 +661,7 @@ function buildEstimates(){
 }
 function openModal(url){document.getElementById('modal-img').src=url;document.getElementById('img-modal').classList.add('on');}
 function closeModal(){document.getElementById('img-modal').classList.remove('on');}
-async function init(){await loadJobs();if(!JOBS.length)return;buildAllStats();renderJobList();renderCal();buildEstimates();}
+async function init(){await loadJobs();if(!JOBS.length)return;await loadAllDiscussionCounts();buildAllStats();renderJobList();renderCal();buildEstimates();primeSeenState();}
 init();
 </script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
