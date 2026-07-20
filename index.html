@@ -165,6 +165,7 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 <div class="tabs-bar">
   <button class="tab-btn active" onclick="showView('jobs',this)">All Jobs</button>
   <button class="tab-btn" onclick="showView('stores',this)">Stores</button>
+  <button class="tab-btn" onclick="showView('doors',this)">Unit Doors</button>
   <button class="tab-btn" onclick="showView('geo',this)">Geographic</button>
   <button class="tab-btn" onclick="showView('sched',this)">Schedule</button>
   <button class="tab-btn" onclick="showView('est',this)">Need Estimates</button>
@@ -175,6 +176,16 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
   <div class="sched-sec-hdr" style="margin-bottom:20px"><h3>Jobs by Store</h3><div class="sched-div"></div></div>
   <div id="store-list"></div>
   <div class="empty-msg" id="stores-empty" style="display:none">No jobs found.</div>
+</div></div>
+
+<div class="view" id="view-doors"><div class="shell">
+  <div class="sched-sec-hdr" style="margin-bottom:20px">
+    <h3>Unit Doors</h3><div class="sched-div"></div>
+    <span id="doors-count" style="font-family:var(--mono);font-size:12px;color:var(--ink3);flex-shrink:0"></span>
+  </div>
+  <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">Showing Unit Doors jobs for Tradesmans Services &amp; Parkinson Enterprises</div>
+  <div class="job-list" id="job-list-doors"></div>
+  <div class="empty-msg" id="doors-empty" style="display:none">No unit door jobs found.</div>
 </div></div>
 <div class="view" id="view-geo"><div class="geo-shell"><div id="map"></div><div class="geo-sidebar"><div class="geo-sidebar-hdr">Jobs by Region</div><div class="region-tabs" id="region-tabs"></div><div id="region-panels"></div></div></div></div>
 <div class="view" id="view-sched"><div class="shell">
@@ -191,6 +202,8 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const VENDOR_NAME='Tradesmans Services';
+const PARKINSON_VENDOR='Parkinson Enterprises';
+const DOOR_TRADES=['Units Doors','Swing Doors','Unit Doors','Doors'];
 const SHEET_ID='7509734909828';
 const SS_TOKEN='Vcpjt0FG4aDCIg8P23tGFPTivL6aANJQmCwrU';
 
@@ -235,7 +248,7 @@ const REGIONS={grandrapids:{label:'Grand Rapids',color:'#1a3a5c',bound:'Grand Ra
 const CITY_COORDS={'canton':[42.31,-83.48],'westland':[42.32,-83.40],'dearborn':[42.32,-83.18],'ann arbor':[42.28,-83.74],'ypsilanti':[42.24,-83.61],'southfield':[42.47,-83.22],'oak park':[42.46,-83.18],'walled lake':[42.54,-83.48],'novi':[42.48,-83.49],'wixom':[42.52,-83.54],'trenton':[42.14,-83.18],'flint':[43.01,-83.69],'lansing':[42.73,-84.56],'grand rapids':[42.96,-85.66],'wyoming':[42.91,-85.70],'kentwood':[42.87,-85.64],'comstock park':[43.04,-85.67],'holland':[42.79,-86.11],'jenison':[42.91,-85.83]};
 function getRegion(a){a=a.toLowerCase();for(const[k,r]of Object.entries(REGIONS))if(r.cities.some(c=>a.includes(c)))return k;return 'other';}
 function getCoords(a){a=a.toLowerCase();for(const[c,co]of Object.entries(CITY_COORDS))if(a.includes(c))return{lat:co[0],lng:co[1]};return{lat:42.35,lng:-83.40};}
-let JOBS=[],VISIBLE_JOBS=[],COL_MAP={},jState={},loadedAtt={},calDate=new Date(),leafMap=null,mapMarkers={};
+let JOBS=[],VISIBLE_JOBS=[],DOOR_JOBS=[],COL_MAP={},jState={},loadedAtt={},calDate=new Date(),leafMap=null,mapMarkers={};
 let activeFilter='all',pendingPhotos={},pendingCompPhotos={};
 async function loadJobs(){
   document.getElementById('loading-overlay').style.display='flex';
@@ -252,6 +265,22 @@ async function loadJobs(){
     }
     JOBS.forEach(j=>j.region=getRegion(j.address));
     VISIBLE_JOBS=JOBS.filter(j=>!j.step.includes('03.'));
+    // Build DOOR_JOBS — all door-trade rows for both Tradesmans and Parkinson
+    DOOR_JOBS=[];
+    for(const row of sheet.rows){
+      const cells={};
+      row.cells.forEach(c=>{cells[colById[c.columnId]]=c.displayValue||c.value||'';});
+      const vendor=cells['Vendor']||'';
+      const trade=cells['Trade']||'';
+      const step=cells['Next Step']||'';
+      if((vendor===VENDOR_NAME||vendor===PARKINSON_VENDOR)&&DOOR_TRADES.some(t=>trade.toLowerCase().includes(t.toLowerCase()))&&!step.includes('03.')){
+        const addr=cells['Site Address']||'';
+        const coords=getCoords(addr);
+        const gv=parseFloat(cells['Gross Value'])||0,gp=parseFloat(cells['Gross Profit'])||0;
+        DOOR_JOBS.push({id:row.id,proj:cells['Project No.']||'',store:cells['Store Code']||'',name:cells['Project Name']||cells['Job Desc.']||'',address:addr,lat:coords.lat,lng:coords.lng,trade:trade,step:step,vStep:cells['Vendor Next Step']||'',gate:cells['Gate Code']||'',start:cells['Start Work Date']||'',pm:cells['PM - Name Only']||'',scope:cells['Scope Of work']||'',invoice:cells['Vendor Invoice Amount']||'',quoted:cells['Vendor Quoted $']||'',nte:gv>0?(gv-gp):0,vendor:vendor});
+      }
+    }
+    DOOR_JOBS.forEach(j=>j.region=getRegion(j.address));
     jState={};JOBS.forEach(j=>{jState[j.id]={vStep:j.vStep||'',invAmt:j.invoice||''};});
   }catch(err){console.error(err);document.getElementById('loading-msg').textContent='Error loading jobs. Please refresh to try again.';return;}
   document.getElementById('loading-overlay').style.display='none';
@@ -282,7 +311,45 @@ function vStepLbl(s){if(!s)return s;if(s.includes('00.'))return 'Waiting for App
 function fmtD(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtM(n){return '$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function showView(id,btn){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('view-'+id).classList.add('active');btn.classList.add('active');if(id==='geo')setTimeout(initMap,50);if(id==='sched')renderCal();if(id==='stores')buildStoresView();}
+function showView(id,btn){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('view-'+id).classList.add('active');btn.classList.add('active');if(id==='geo')setTimeout(initMap,50);if(id==='sched')renderCal();if(id==='stores')buildStoresView();if(id==='doors')buildDoorsView();}
+function buildDoorsView(){
+  const list=document.getElementById('job-list-doors'),empty=document.getElementById('doors-empty'),count=document.getElementById('doors-count');
+  if(!DOOR_JOBS.length){list.innerHTML='';empty.style.display='block';count.textContent='';return;}
+  empty.style.display='none';
+  count.textContent=DOOR_JOBS.length+' job'+(DOOR_JOBS.length!==1?'s':'');
+  // Group by store
+  const groups={};
+  DOOR_JOBS.forEach(j=>{
+    const key=j.store||'Other';
+    if(!groups[key])groups[key]=[];
+    groups[key].push(j);
+  });
+  const sorted=Object.keys(groups).sort();
+  list.innerHTML=sorted.map(store=>{
+    const jobs=groups[store];
+    const addr=jobs[0].address||'';
+    const customer=getCustomer(store)||'';
+    const gid='door-store-'+store.replace(/\W+/g,'-');
+    return `<div class="store-group" id="${gid}">
+      <div class="store-group-hdr" onclick="toggleStoreGroup('${gid}')">
+        <div class="store-group-info">
+          <div class="store-group-name">${esc(store)}${customer?' <span style="font-family:var(--font);font-size:12px;font-weight:400;color:var(--ink3)">· '+customer+'</span>':''}</div>
+          <div class="store-group-addr">${esc(addr)}</div>
+        </div>
+        <span class="store-group-count">${jobs.length} WO${jobs.length!==1?'s':''}</span>
+        <svg class="store-group-chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div class="store-group-body" id="${gid}-body">
+        ${jobs.map(j=>{
+          const vendorChip=j.vendor===PARKINSON_VENDOR
+            ?'<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:#E3F2FD;color:#1565C0;margin-right:6px">PE</span>'
+            :'<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:#E8F5E9;color:#2E7D32;margin-right:6px">TS</span>';
+          return buildCard(j,'doors').replace('<div class="jname">','<div class="jname">'+vendorChip);
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
 function buildStoresView(){
   const container=document.getElementById('store-list');
   const empty=document.getElementById('stores-empty');
