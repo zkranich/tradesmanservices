@@ -1,7 +1,7 @@
-const CACHE_NAME = 'ts-portal-v1';
+const CACHE_NAME = 'ts-portal-v2';
 const SHELL_URLS = [
-  '/',
-  '/index.html',
+  './',
+  './index.html',
   'https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
