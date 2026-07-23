@@ -273,7 +273,7 @@ async function loadJobs(){
       const vendor=cells['Vendor']||'';
       const trade=cells['Trade']||'';
       const step=cells['Next Step']||'';
-      if((vendor===VENDOR_NAME||vendor===PARKINSON_VENDOR)&&DOOR_TRADES.some(t=>trade.toLowerCase().includes(t.toLowerCase()))&&!step.includes('03.')){
+      if(vendor===VENDOR_NAME&&DOOR_TRADES.some(t=>trade.toLowerCase().includes(t.toLowerCase()))&&!step.includes('03.')){
         const addr=cells['Site Address']||'';
         const coords=getCoords(addr);
         const gv=parseFloat(cells['Gross Value'])||0,gp=parseFloat(cells['Gross Profit'])||0;
