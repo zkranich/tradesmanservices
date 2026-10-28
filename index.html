@@ -139,6 +139,22 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 .geo-item{padding:11px 16px;border-bottom:1px solid var(--line2);cursor:pointer;transition:background .12s}.geo-item:hover{background:var(--paper)}.geo-item.sel{background:#EEF6FF}
 .geo-item-num{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-bottom:2px}.geo-item-name{font-size:13px;font-weight:500;line-height:1.35}.geo-item-badge{margin-top:5px}
 .geo-empty{padding:28px 16px;text-align:center;color:var(--ink3);font-size:13px}
+/* Map pin drawer */
+.map-drawer{position:fixed;bottom:0;left:0;right:0;z-index:500;background:var(--surface);border-radius:16px 16px 0 0;box-shadow:0 -4px 30px rgba(0,0,0,.18);transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);max-height:70dvh;display:flex;flex-direction:column}
+.map-drawer.open{transform:translateY(0)}
+.map-drawer-handle{width:36px;height:4px;border-radius:2px;background:var(--line);margin:10px auto 0;flex-shrink:0;cursor:pointer}
+.map-drawer-hdr{display:flex;align-items:center;padding:10px 18px 8px;gap:10px;flex-shrink:0}
+.map-drawer-title{flex:1;min-width:0;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map-drawer-pager{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.map-drawer-pager span{font-size:11px;color:var(--ink3);font-family:var(--mono)}
+.map-pager-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s;flex-shrink:0}
+.map-pager-btn:hover{background:var(--paper)}.map-pager-btn:disabled{opacity:.3;cursor:not-allowed}
+.map-drawer-close{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--ink3)}
+.map-drawer-close:hover{background:var(--paper);color:var(--ink)}
+.map-drawer-body{overflow-y:auto;padding:0 0 env(safe-area-inset-bottom,0) 0;flex:1}
+.map-drawer-body .jcard{border-radius:0;border:none;border-top:1px solid var(--line2);box-shadow:none}
+.map-drawer-body .jcard:hover{border-color:var(--line2);box-shadow:none}
+.map-pin-loading{text-align:center;padding:20px;color:var(--ink3);font-size:13px}
 .cal-nav{display:flex;align-items:center;gap:12px;margin-bottom:18px}.cal-month{font-size:18px;font-weight:600;letter-spacing:-.5px}
 .cal-nbtn{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s}.cal-nbtn:hover{background:var(--paper)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--rlg);overflow:hidden;margin-bottom:28px}
@@ -742,22 +758,59 @@ async function doSched(id,pfx){
   btn.disabled=false;btn.textContent='Save Schedule Date';
 }
 
-function initMap(){
+// ── Geocode cache ──
+const GEO_CACHE={};
+const GMAPS_KEY='AIzaSyBiW0zuaB27AFxKKBn69cnn8lPnC-B6CJA';
+async function geocodeAddress(addr){
+  if(GEO_CACHE[addr])return GEO_CACHE[addr];
+  const rough=getCoords(addr); // fallback while geocoding
+  try{
+    const r=await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(addr)}&key=${GMAPS_KEY}`);
+    const d=await r.json();
+    if(d.status==='OK'&&d.results[0]){
+      const loc=d.results[0].geometry.location;
+      GEO_CACHE[addr]={lat:loc.lat,lng:loc.lng};
+      return GEO_CACHE[addr];
+    }
+  }catch(e){}
+  return rough;
+}
+
+// ── Map drawer state ──
+let drawerJobs=[],drawerIdx=0;
+function openMapDrawer(jobs){
+  drawerJobs=jobs;drawerIdx=0;
+  renderMapDrawer();
+  document.getElementById('map-drawer').classList.add('open');
+}
+function closeMapDrawer(){document.getElementById('map-drawer').classList.remove('open');}
+function cycleMapCard(dir){
+  drawerIdx=(drawerIdx+dir+drawerJobs.length)%drawerJobs.length;
+  renderMapDrawer();
+}
+function renderMapDrawer(){
+  const j=drawerJobs[drawerIdx];
+  const pager=document.getElementById('map-drawer-pager');
+  const title=document.getElementById('map-drawer-title');
+  const body=document.getElementById('map-drawer-body');
+  if(drawerJobs.length>1){
+    pager.style.display='flex';
+    document.getElementById('map-pager-label').textContent=`${drawerIdx+1}/${drawerJobs.length}`;
+    document.getElementById('map-pager-prev').disabled=false;
+    document.getElementById('map-pager-next').disabled=false;
+  }else{pager.style.display='none';}
+  title.textContent=j.store||j.name;
+  body.innerHTML=buildCard(j,'all');
+  // auto-open the card detail
+  setTimeout(()=>{const card=body.querySelector('.jcard');if(card)card.classList.add('open');},50);
+}
+
+async function initMap(){
   if(gMap)return;
   const mapEl=document.getElementById('map');
-  gMap=new google.maps.Map(mapEl,{center:{lat:42.90,lng:-85.70},zoom:10,mapTypeControl:false,streetViewControl:false,fullscreenControl:false,styles:[{featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]}]});
-  const infoWin=new google.maps.InfoWindow();
-  const grp={};VISIBLE_JOBS.forEach(j=>{const k=j.lat+','+j.lng;(grp[k]=grp[k]||[]).push(j);});
-  Object.values(grp).forEach(jobs=>{
-    const reg=REGIONS[jobs[0].region],color=reg?reg.color:'#666',cnt=jobs.length;
-    const pin=document.createElement('div');
-    pin.style.cssText=`background:${color};color:white;width:${cnt>1?34:24}px;height:${cnt>1?34:24}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:${cnt>1?11:9}px;font-weight:500;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer`;
-    pin.textContent=cnt>1?cnt:'●';
-    const m=new google.maps.marker.AdvancedMarkerElement({position:{lat:jobs[0].lat,lng:jobs[0].lng},map:gMap,content:pin});
-    const html=`<div style="min-width:190px">${jobs.map(j=>`<div style="padding:4px 0;border-bottom:1px solid #eee;font-family:sans-serif"><div style="font-family:monospace;font-size:10px;color:#888">#${j.proj}</div><div style="font-size:12px;font-weight:500">${j.name}</div></div>`).join('')}</div>`;
-    m.addListener('click',()=>{infoWin.setContent(html);infoWin.open(gMap,m);});
-    jobs.forEach(j=>mapMarkers[j.id]=m);
-  });
+  gMap=new google.maps.Map(mapEl,{center:{lat:42.90,lng:-85.70},zoom:8,mapTypeControl:false,streetViewControl:false,fullscreenControl:false,gestureHandling:'greedy',mapId:'DEMO_MAP_ID',styles:[{featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]}]});
+
+  // Build region sidebar first (instant, uses rough coords)
   const tabs=document.getElementById('region-tabs'),panels=document.getElementById('region-panels');
   let t='',p='',first=true;
   Object.entries(REGIONS).forEach(([key,reg])=>{
@@ -767,16 +820,64 @@ function initMap(){
     first=false;
   });
   tabs.innerHTML=t;panels.innerHTML=p;
+
+  // Geocode all unique addresses and place pins
+  const addrGroups={};
+  VISIBLE_JOBS.forEach(j=>{(addrGroups[j.address]=addrGroups[j.address]||[]).push(j);});
+
+  await Promise.all(Object.entries(addrGroups).map(async([addr,jobs])=>{
+    const coords=await geocodeAddress(addr);
+    // Update job lat/lng with real geocoded coords
+    jobs.forEach(j=>{j.lat=coords.lat;j.lng=coords.lng;});
+
+    const cnt=jobs.length;
+    const reg=REGIONS[jobs[0].region],color=reg?reg.color:'#4B5563';
+    const pin=document.createElement('div');
+    pin.style.cssText=`background:${color};color:white;width:${cnt>1?36:26}px;height:${cnt>1?36:26}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:${cnt>1?12:10}px;font-weight:600;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;transition:transform .15s`;
+    pin.textContent=cnt>1?cnt:'●';
+    pin.onmouseenter=()=>{pin.style.transform='scale(1.15)';};
+    pin.onmouseleave=()=>{pin.style.transform='scale(1)';};
+
+    const m=new google.maps.marker.AdvancedMarkerElement({position:coords,map:gMap,content:pin,title:addr});
+    m.addListener('click',()=>{
+      // Highlight selected pin
+      document.querySelectorAll('.geo-item').forEach(el=>el.classList.remove('sel'));
+      jobs.forEach(j=>{
+        const el=document.querySelector(`.geo-item[onclick*="flyTo(${j.id})"]`);
+        if(el)el.classList.add('sel');
+      });
+      openMapDrawer(jobs);
+      gMap.panTo(coords);
+    });
+    jobs.forEach(j=>mapMarkers[j.id]=m);
+  }));
+
+  // Fit map to all pins
+  if(VISIBLE_JOBS.length){
+    const bounds=new google.maps.LatLngBounds();
+    VISIBLE_JOBS.forEach(j=>bounds.extend({lat:j.lat,lng:j.lng}));
+    gMap.fitBounds(bounds,{top:60,right:40,bottom:40,left:40});
+  }
 }
+
 function switchRegion(key,btn){
   document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.geo-region-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('rp-'+key).classList.add('active');
   if(!gMap)return;
   const jobs=VISIBLE_JOBS.filter(j=>j.region===key);
-  if(jobs.length){const bounds=new google.maps.LatLngBounds();jobs.forEach(j=>bounds.extend({lat:j.lat,lng:j.lng}));gMap.fitBounds(bounds,{top:40,right:40,bottom:40,left:40});if(jobs.length===1)gMap.setZoom(13);}
+  if(jobs.length){const bounds=new google.maps.LatLngBounds();jobs.forEach(j=>bounds.extend({lat:j.lat,lng:j.lng}));gMap.fitBounds(bounds,{top:40,right:40,bottom:40,left:40});if(jobs.length===1)gMap.setZoom(14);}
 }
-function flyTo(id){const j=JOBS.find(x=>x.id===id);if(!j||!gMap)return;gMap.panTo({lat:j.lat,lng:j.lng});gMap.setZoom(15);mapMarkers[id]?.content?.click?.();}
+function flyTo(id){
+  const j=JOBS.find(x=>x.id===id);if(!j||!gMap)return;
+  gMap.panTo({lat:j.lat,lng:j.lng});gMap.setZoom(15);
+  // Find all jobs at same address and open drawer
+  const sameAddr=VISIBLE_JOBS.filter(x=>x.address===j.address);
+  const startIdx=sameAddr.findIndex(x=>x.id===id);
+  drawerJobs=sameAddr;drawerIdx=Math.max(0,startIdx);
+  renderMapDrawer();
+  document.getElementById('map-drawer').classList.add('open');
+}
 function changeMonth(d){calDate=new Date(calDate.getFullYear(),calDate.getMonth()+d,1);renderCal();}
 function renderCal(){
   const y=calDate.getFullYear(),m=calDate.getMonth();
@@ -882,6 +983,20 @@ function buildStoresViewFiltered(){
 async function init(){await loadJobs();if(!JOBS.length)return;await loadAllDiscussionCounts();buildAllStats();renderJobList();renderCal();primeSeenState();}
 init();
 </script>
+<div class="map-drawer" id="map-drawer">
+  <div class="map-drawer-handle" onclick="closeMapDrawer()"></div>
+  <div class="map-drawer-hdr">
+    <div class="map-drawer-title" id="map-drawer-title">Job Details</div>
+    <div class="map-drawer-pager" id="map-drawer-pager" style="display:none">
+      <button class="map-pager-btn" id="map-pager-prev" onclick="cycleMapCard(-1)"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>
+      <span id="map-pager-label"></span>
+      <button class="map-pager-btn" id="map-pager-next" onclick="cycleMapCard(1)"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>
+    </div>
+    <button class="map-drawer-close" onclick="closeMapDrawer()"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  </div>
+  <div class="map-drawer-body" id="map-drawer-body"></div>
+</div>
+
 <script>
 // ── PUSH NOTIFICATIONS ──
 const VAPID_PUBLIC_KEY='BFcIRz3U260xoH71RJJZZaoWCpFhY-2KFai-DmUBGvGDmxK9aLt8Yw0gztIb0r6y2mxjgGqYyamcLi-SETOJRuo';
