@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="TS Portal">
@@ -12,7 +12,6 @@
 <title>Tradesmans Services — Vendor Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
 :root{--ink:#18181A;--ink2:#4a4a4f;--ink3:#8a8a92;--paper:#F7F6F2;--surface:#FFFFFF;--line:rgba(24,24,26,.1);--line2:rgba(24,24,26,.06);--r:10px;--rlg:14px;--font:'DM Sans',system-ui,sans-serif;--mono:'DM Mono',monospace;--c-buyout-bg:#FFF3E0;--c-buyout:#E65100;--c-approval-bg:#E3F2FD;--c-approval:#1565C0;--c-dowork-bg:#E8F5E9;--c-dowork:#2E7D32;--c-pending-bg:#FCE4EC;--c-pending:#880E4F;--c-approved-bg:#E0F2F1;--c-approved:#00695C;--c-hold-bg:#F5F5F5;--c-hold:#616161}
@@ -23,12 +22,21 @@
 .hdr-name{font-size:14px;font-weight:500}.hdr-sep{opacity:.2}.hdr-sub{font-size:12px;opacity:.5}
 .hdr-right{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11px;opacity:.55}
 .live-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blink 2.5s ease-in-out infinite}
-.tabs-bar{background:var(--surface);border-bottom:1px solid var(--line);padding:0 20px;display:flex;position:sticky;top:56px;z-index:190;overflow-x:auto}
+.tabs-bar{background:var(--surface);border-bottom:1px solid var(--line);padding:0 20px;display:flex;position:sticky;top:56px;z-index:190;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.tabs-bar::-webkit-scrollbar{display:none}
+.search-bar{background:var(--surface);border-bottom:1px solid var(--line);padding:10px 20px;position:sticky;top:105px;z-index:185}
+.search-wrap{position:relative;max-width:600px}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink3);pointer-events:none}
+#global-search{width:100%;padding:9px 36px 9px 36px;border:1px solid var(--line);border-radius:var(--r);font-size:14px;font-family:var(--font);background:var(--paper);color:var(--ink);outline:none;transition:border-color .15s,box-shadow .15s}
+#global-search:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(24,24,26,.08);background:var(--surface)}
+#global-search::placeholder{color:var(--ink3)}
+.search-clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--ink3);padding:4px;display:none;line-height:0;border-radius:4px}
+.search-clear:hover{color:var(--ink);background:var(--line2)}
+.search-count{position:absolute;right:36px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink3);font-family:var(--mono);pointer-events:none;display:none}
 .tab-btn{padding:13px 16px;font-size:13px;font-weight:500;color:var(--ink3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s;display:flex;align-items:center;gap:7px;white-space:nowrap}
 .tab-btn:hover{color:var(--ink)}.tab-btn.active{color:var(--ink);border-bottom-color:var(--ink)}
 .view{display:none}.view.active{display:block}
-.shell{max-width:980px;margin:0 auto;padding:22px 20px}
-.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.shell{max-width:1100px;margin:0 auto;padding:22px 20px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .1s,background .15s}
 .stat:hover{border-color:rgba(24,24,26,.25);box-shadow:0 3px 12px rgba(0,0,0,.08);transform:translateY(-1px)}.stat:active{transform:translateY(0)}
 .stat.active-stat{transform:translateY(0);box-shadow:0 2px 8px rgba(0,0,0,.1)}
@@ -117,7 +125,7 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 .route-full-btn{display:flex;align-items:center;gap:7px;padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;text-decoration:none;flex:1;justify-content:center;min-width:140px;border:none}
 .route-full-btn.gmaps{background:#4285F4;color:white}.route-full-btn.amaps{background:#1c1c1e;color:white}.route-full-btn:hover{opacity:.88}
 .route-empty{text-align:center;padding:40px 20px;color:var(--ink3);font-size:14px}
-#view-geo.active{display:flex;flex-direction:column}.geo-shell{display:flex;flex:1;height:calc(100vh - 105px)}
+#view-geo.active{display:flex;flex-direction:column;height:calc(100dvh - 105px)}.geo-shell{display:flex;flex:1;min-height:0;overflow:hidden}
 #map{flex:1;min-width:0;min-height:300px}
 .geo-sidebar{width:320px;flex-shrink:0;border-left:1px solid var(--line);overflow-y:auto;background:var(--surface);display:flex;flex-direction:column}
 .geo-sidebar-hdr{padding:13px 16px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;flex-shrink:0}
@@ -142,14 +150,53 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
 .sched-rows{display:flex;flex-direction:column;gap:6px}
 .sched-row{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:border-color .12s}.sched-row:hover{border-color:rgba(24,24,26,.2)}
 .sched-dt{font-family:var(--mono);font-size:11px;color:var(--ink3);width:88px;flex-shrink:0}.sched-info{flex:1;min-width:0}.sched-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sched-addr{font-size:12px;color:var(--ink3);margin-top:1px}
-.est-hdr{display:flex;align-items:center;gap:16px;padding:4px 0 20px;border-bottom:1px solid var(--line);margin-bottom:20px}
-.est-hdr-icon{width:44px;height:44px;border-radius:12px;background:#FFF3E0;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#E65100}
-.est-hdr-title{font-size:17px;font-weight:600;letter-spacing:-.2px}.est-hdr-sub{font-size:12px;color:var(--ink3);margin-top:3px}
-.est-count{margin-left:auto;font-size:28px;font-weight:600;letter-spacing:-1px;color:var(--c-buyout);flex-shrink:0}
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:999;display:none;align-items:center;justify-content:center}.modal-bg.on{display:flex}
 .modal-box{background:white;border-radius:var(--rlg);overflow:hidden;max-width:88vw;max-height:88vh}.modal-box img{display:block;max-width:84vw;max-height:84vh;object-fit:contain}
 .modal-close{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.5);color:white;border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-@media(max-width:660px){.stats-row{grid-template-columns:repeat(3,1fr)}.igrid{grid-template-columns:1fr}.iitem.full{grid-column:1}.jbadges{display:none}.geo-shell{flex-direction:column-reverse}.geo-sidebar{width:100%;height:260px;border-left:none;border-top:1px solid var(--line)}}
+/* ── TABLET (≤900px) ── */
+@media(max-width:900px){
+  .shell{max-width:100%;padding:16px 16px}
+  .stats-row{grid-template-columns:repeat(3,1fr);gap:8px}
+  .geo-sidebar{width:280px}
+  .cal-day{min-height:72px}
+}
+/* ── PHONE (≤600px) ── */
+@media(max-width:600px){
+  .hdr{height:52px;padding:0 16px;gap:10px}
+  .hdr-sub{display:none}
+  .hdr-sep{display:none}
+  .hdr-right{font-size:10px}
+  .tabs-bar{padding:0 8px;top:52px}
+  .search-bar{top:101px;padding:8px 12px}
+  .tab-btn{padding:11px 10px;font-size:12px;gap:5px}
+  .shell{padding:12px 12px}
+  .stats-row{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px}
+  .stat{padding:12px 14px}
+  .stat-n{font-size:22px}
+  .igrid{grid-template-columns:1fr}
+  .iitem.full{grid-column:1}
+  .jbadges{gap:4px}
+  .jhead{padding:12px 14px;gap:10px}
+  .jname{font-size:13px}
+  .bpanel{padding:14px}
+  .geo-shell{flex-direction:column}
+  .geo-sidebar{width:100%;height:240px;border-left:none;border-top:1px solid var(--line);flex-shrink:0}
+  #map{min-height:260px;flex:1}
+  .cal-grid{margin-bottom:18px}
+  .cal-day{min-height:58px;padding:5px}
+  .cal-ev{font-size:9px;padding:1px 4px}
+  .route-day-footer{flex-direction:column}
+  .route-full-btn{min-width:0}
+  .sched-dt{width:76px}
+  .igrid{gap:10px 0}
+  .pm-contact{gap:6px}
+  .att-grid{grid-template-columns:repeat(auto-fill,minmax(90px,1fr))}
+  .irow .ii{min-width:100px}
+}
+/* ── SAFE AREA (notch phones) ── */
+@supports(padding:env(safe-area-inset-bottom)){
+  body{padding-bottom:env(safe-area-inset-bottom)}
+}
 </style>
 </head>
 <body>
@@ -168,7 +215,16 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
   <button class="tab-btn" onclick="showView('doors',this)">Unit Doors</button>
   <button class="tab-btn" onclick="showView('geo',this)">Geographic</button>
   <button class="tab-btn" onclick="showView('sched',this)">Schedule</button>
-  <button class="tab-btn" onclick="showView('est',this)">Need Estimates</button>
+</div>
+<div class="search-bar">
+  <div class="search-wrap">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input id="global-search" type="search" placeholder="Search jobs, store #, address, trade, customer…" oninput="handleSearch(this.value)" autocomplete="off" autocorrect="off" spellcheck="false">
+    <span class="search-count" id="search-count"></span>
+    <button class="search-clear" id="search-clear" onclick="clearSearch()" title="Clear search">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
 </div>
 <div class="view active" id="view-jobs"><div class="shell"><div class="stats-row" id="stats-all"></div><div class="job-list" id="job-list-all"></div><div class="empty-msg" id="jobs-empty" style="display:none">No jobs in this category.</div></div></div>
 
@@ -194,12 +250,8 @@ textarea.ni{width:100%;padding:10px 12px;border:1px solid var(--line);border-rad
   <div class="sched-sec-hdr"><h3>All Scheduled Jobs</h3><div class="sched-div"></div></div><div class="sched-rows" id="sched-rows"></div>
   <div class="sched-sec-hdr" style="margin-top:28px"><h3>Routes by Day</h3><div class="sched-div"></div></div><div id="route-days"></div>
 </div></div>
-<div class="view" id="view-est"><div class="shell">
-  <div class="est-hdr"><div class="est-hdr-icon"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="est-hdr-title">Jobs Needing Estimates</div><div class="est-hdr-sub">Submit your bid for these jobs.</div></div><div class="est-count" id="est-count"></div></div>
-  <div class="job-list" id="job-list-est"></div><div class="empty-msg" id="est-empty" style="display:none">No jobs currently need estimates.</div>
-</div></div>
 <div class="modal-bg" id="img-modal" onclick="closeModal()"><button class="modal-close" onclick="closeModal()">✕</button><div class="modal-box" onclick="event.stopPropagation()"><img id="modal-img" src="" alt=""></div></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBiW0zuaB27AFxKKBn69cnn8lPnC-B6CJA&libraries=marker" async defer></script>
 <script>
 const VENDOR_NAME='Tradesmans Services';
 const PARKINSON_VENDOR='Parkinson Enterprises';
@@ -248,7 +300,7 @@ const REGIONS={grandrapids:{label:'Grand Rapids',color:'#1a3a5c',bound:'Grand Ra
 const CITY_COORDS={'canton':[42.31,-83.48],'westland':[42.32,-83.40],'dearborn':[42.32,-83.18],'ann arbor':[42.28,-83.74],'ypsilanti':[42.24,-83.61],'southfield':[42.47,-83.22],'oak park':[42.46,-83.18],'walled lake':[42.54,-83.48],'novi':[42.48,-83.49],'wixom':[42.52,-83.54],'trenton':[42.14,-83.18],'flint':[43.01,-83.69],'lansing':[42.73,-84.56],'grand rapids':[42.96,-85.66],'wyoming':[42.91,-85.70],'kentwood':[42.87,-85.64],'comstock park':[43.04,-85.67],'holland':[42.79,-86.11],'jenison':[42.91,-85.83]};
 function getRegion(a){a=a.toLowerCase();for(const[k,r]of Object.entries(REGIONS))if(r.cities.some(c=>a.includes(c)))return k;return 'other';}
 function getCoords(a){a=a.toLowerCase();for(const[c,co]of Object.entries(CITY_COORDS))if(a.includes(c))return{lat:co[0],lng:co[1]};return{lat:42.35,lng:-83.40};}
-let JOBS=[],VISIBLE_JOBS=[],DOOR_JOBS=[],COL_MAP={},jState={},loadedAtt={},calDate=new Date(),leafMap=null,mapMarkers={};
+let JOBS=[],VISIBLE_JOBS=[],DOOR_JOBS=[],COL_MAP={},jState={},loadedAtt={},calDate=new Date(),gMap=null,mapMarkers={};
 let activeFilter='all',pendingPhotos={},pendingCompPhotos={};
 async function loadJobs(){
   document.getElementById('loading-overlay').style.display='flex';
@@ -261,7 +313,7 @@ async function loadJobs(){
       if(cells['Vendor']!==VENDOR_NAME)continue;
       const addr=cells['Site Address']||'',coords=getCoords(addr);
       const gv=parseFloat(cells['Gross Value'])||0,gp=parseFloat(cells['Gross Profit'])||0;
-      JOBS.push({id:row.id,proj:cells['Project No.']||'',store:cells['Store Code']||'',name:cells['Project Name']||cells['Job Desc.']||'',address:addr,lat:coords.lat,lng:coords.lng,trade:cells['Trade']||'',step:cells['Next Step']||'',vStep:cells['Vendor Next Step']||'',gate:cells['Gate Code']||'',start:cells['Start Work Date']||'',pm:cells['PM - Name Only']||'',scope:cells['Scope Of work']||'',invoice:cells['Vendor Invoice Amount']||'',quoted:cells['Vendor Quoted $']||'',nte:gv>0?(gv-gp):0});
+      JOBS.push({id:row.id,proj:cells['Project No.']||'',store:cells['Store Code']||'',name:cells['Project Name']||cells['Job Desc.']||'',address:addr,lat:coords.lat,lng:coords.lng,trade:cells['Trade']||'',step:cells['Next Step']||'',vStep:cells['Vendor Next Step']||'',gate:cells['Gate Code']||'',start:cells['Start Work Date']||'',pm:cells['PM - Name Only']||'',scope:cells['Scope Of work']||'',invoice:cells['Vendor Invoice Amount']||'',quoted:cells['Vendor Quoted $']||'',nte:gv>0?(gv-gp):0,occupancy:cells['Occupancy Status']||'',combo:cells['Combo Code']||''});
     }
     JOBS.forEach(j=>j.region=getRegion(j.address));
     VISIBLE_JOBS=JOBS.filter(j=>!j.step.includes('03.'));
@@ -277,7 +329,7 @@ async function loadJobs(){
         const addr=cells['Site Address']||'';
         const coords=getCoords(addr);
         const gv=parseFloat(cells['Gross Value'])||0,gp=parseFloat(cells['Gross Profit'])||0;
-        DOOR_JOBS.push({id:row.id,proj:cells['Project No.']||'',store:cells['Store Code']||'',name:cells['Project Name']||cells['Job Desc.']||'',address:addr,lat:coords.lat,lng:coords.lng,trade:trade,step:step,vStep:cells['Vendor Next Step']||'',gate:cells['Gate Code']||'',start:cells['Start Work Date']||'',pm:cells['PM - Name Only']||'',scope:cells['Scope Of work']||'',invoice:cells['Vendor Invoice Amount']||'',quoted:cells['Vendor Quoted $']||'',nte:gv>0?(gv-gp):0,vendor:vendor});
+        DOOR_JOBS.push({id:row.id,proj:cells['Project No.']||'',store:cells['Store Code']||'',name:cells['Project Name']||cells['Job Desc.']||'',address:addr,lat:coords.lat,lng:coords.lng,trade:trade,step:step,vStep:cells['Vendor Next Step']||'',gate:cells['Gate Code']||'',start:cells['Start Work Date']||'',pm:cells['PM - Name Only']||'',scope:cells['Scope Of work']||'',invoice:cells['Vendor Invoice Amount']||'',quoted:cells['Vendor Quoted $']||'',nte:gv>0?(gv-gp):0,vendor:vendor,occupancy:cells['Occupancy Status']||'',combo:cells['Combo Code']||''});
       }
     }
     DOOR_JOBS.forEach(j=>j.region=getRegion(j.address));
@@ -477,12 +529,13 @@ function buildCard(j,pfx){
   const hasUpdate=flags.statusChanged||flags.hasNote;
   return `<div class="jcard${hasUpdate?' has-update':''}" id="jc-${pfx}-${j.id}"><div class="jhead" onclick="toggleCard('${pfx}',${j.id})"><span class="jnum">${esc(j.store)}</span><div class="jtitle"><div class="jname">${flags.hasNote?'<span class="update-tag">New Note</span>':''}${flags.statusChanged?'<span class="update-tag">Status Changed</span>':''}${esc(j.name)}</div><div class="jaddr">${esc(j.address)}</div></div><div class="jbadges"><span class="badge ${stepCls(j.step)}">${stepLblBadge(j.step,j.vStep)}</span></div><svg class="chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
 <div class="jbody">
-<div class="btabs"><button class="btab active" onclick="btab(event,'${pfx}',${j.id},'info')">Job Info</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'photos')">Photos</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'est')">Estimate</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'sched')">Schedule</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'bill')">Billing</button></div>
+<div class="btabs"><button class="btab active" onclick="btab(event,'${pfx}',${j.id},'info')">Job Info</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'photos')">Photos</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'est')">Estimate</button><button class="btab" onclick="btab(event,'${pfx}',${j.id},'sched')">Schedule</button></div>
 <div class="bpanel active" id="binfo-${pfx}-${j.id}"><div class="igrid">
   <div class="iitem full"><label>Scope of Work</label><p>${esc(j.scope)||'—'}</p></div>
   ${getCustomer(j.store)?`<div class="iitem"><label>Customer</label><p style="font-weight:500">${getCustomer(j.store)}</p><p style="font-size:12px;color:var(--ink3)">${esc(j.store)}</p></div>`:''}
   <div class="iitem"><label>Site Address</label><p>${esc(j.address)}</p><a class="maplnk" href="https://maps.google.com/?q=${encodeURIComponent(j.address)}" target="_blank"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>Open in Maps</a></div>
   ${j.gate?`<div class="iitem"><label>Gate / Access Code</label><div class="gate-chip"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>${esc(j.gate)}</div></div>`:''}
+  ${DOOR_TRADES.some(t=>(j.trade||'').toLowerCase().includes(t.toLowerCase()))?(()=>{const occ=(j.occupancy||'').toLowerCase();const isVacant=occ.includes('vacant');const isOccupied=occ.includes('occupied');const occLabel=j.occupancy||'Unknown';const occUnknown=!j.occupancy;const occStyle=occUnknown?'background:#F5F5F5;color:#616161':isVacant?'background:#E8F5E9;color:#2E7D32':'background:#FFF3E0;color:#E65100';const occIcon=occUnknown?`<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>`:isVacant?`<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>`:`<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>`;return `<div class="iitem full"><label>Occupancy</label><div style="display:flex;align-items:center;gap:8px;margin-top:4px;flex-wrap:wrap"><div style="display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:var(--r);font-size:13px;font-weight:600;font-family:var(--mono);${occStyle}">${occIcon}${esc(occLabel)}</div>${j.combo?`<div style="display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:var(--r);font-size:13px;font-weight:600;font-family:var(--mono);background:#1565C0;color:white"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>${esc(j.combo)}</div>`:''}</div></div>`;})():''}
   <div class="iitem"><label>Status</label><span class="badge ${stepCls(j.step)}" style="font-size:11px">${stepLblBadge(j.step,j.vStep)}</span></div>
   ${j.vStep?`<div class="iitem"><label>Your Next Step</label><span style="font-size:11px;padding:3px 9px;border-radius:20px;background:#EDE9FE;color:#5B21B6;font-weight:500">${esc(j.vStep)}</span></div>`:''}
   ${j.nte>0?`<div class="iitem"><label>Current NTE</label><div class="nte-chip">${fmtM(j.nte)}</div></div>`:''}
@@ -504,11 +557,7 @@ function buildCard(j,pfx){
 <div class="bpanel" id="bsched-${pfx}-${j.id}">
   <div class="asec"><h4>Schedule Date</h4>${j.start?`<div class="sched-display"><div><div class="sched-date">${fmtD(j.start)}</div><div class="sched-label">Currently scheduled</div></div></div>`:`<div class="sched-none">No date scheduled yet.</div>`}${canSched?`<input class="ii" type="date" id="scd-${pfx}-${j.id}" value="${j.start||''}" style="margin-bottom:8px"><button class="btn pri" onclick="doSched(${j.id},'${pfx}')">Save Schedule Date</button><div class="msg-ok" id="scd-ok-${pfx}-${j.id}">✓ Schedule date updated</div><div class="msg-err" id="scd-er-${pfx}-${j.id}">Error</div>`:`<div class="locked-msg"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Scheduling available once this job is approved.</div>`}</div>
 </div>
-<div class="bpanel" id="bbill-${pfx}-${j.id}">
-  <div class="asec"><h4>Submit Invoice</h4><div class="irow"><input class="ii" type="number" id="inv-a-${pfx}-${j.id}" placeholder="Invoice amount ($)" min="0" step="0.01" ${j.invoice&&parseFloat(j.invoice)>0?`value="${parseFloat(j.invoice).toFixed(2)}" style="background:var(--paper);color:var(--c-dowork);font-weight:600"`:''}><input class="ii" type="text" id="inv-n-${pfx}-${j.id}" placeholder="Invoice # (optional)" style="max-width:170px"></div><div class="upl-area" onclick="document.getElementById('inv-f-${pfx}-${j.id}').click()"><input type="file" id="inv-f-${pfx}-${j.id}" accept="image/*,.pdf" onchange="document.getElementById('inv-fn-${pfx}-${j.id}').textContent=this.files[0].name"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="margin-bottom:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><div id="inv-fn-${pfx}-${j.id}">Attach invoice</div></div></div>
-  <div class="asec"><h4>Completion Photos</h4><div class="photo-actions"><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Take Photo<input type="file" accept="image/*" capture="environment" onchange="previewCompPhoto(this,'${pfx}',${j.id})"></label><label class="photo-btn"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Images<input type="file" accept="image/*" multiple onchange="previewCompPhoto(this,'${pfx}',${j.id})"></label></div><div id="comp-preview-${pfx}-${j.id}" class="photo-preview"></div></div>
-  <button class="btn pri" onclick="doInvoice(${j.id},'${pfx}')">Submit Invoice &amp; Photos</button><div class="msg-ok" id="inv-ok-${pfx}-${j.id}">✓ Invoice submitted</div><div class="msg-err" id="inv-er-${pfx}-${j.id}">Error — please try again</div>
-</div>
+
 </div></div>`;
 }
 function toggleCard(pfx,id){
@@ -692,42 +741,21 @@ async function doSched(id,pfx){
   }catch{er.classList.add('on');}
   btn.disabled=false;btn.textContent='Save Schedule Date';
 }
-async function doInvoice(id,pfx){
-  const amt=document.getElementById('inv-a-'+pfx+'-'+id).value,num=document.getElementById('inv-n-'+pfx+'-'+id).value;
-  const ok=document.getElementById('inv-ok-'+pfx+'-'+id),er=document.getElementById('inv-er-'+pfx+'-'+id);
-  ok.classList.remove('on');er.classList.remove('on');
-  if(!amt){er.textContent='Please enter an invoice amount.';er.classList.add('on');return;}
-  const btn=ok.previousElementSibling;btn.disabled=true;btn.textContent='Submitting…';
-  try{
-    const val=parseFloat(amt).toFixed(2);
-    await ssUpdateRow(id,'Vendor Invoice Amount',parseFloat(val));
-    if(num)await ssUpdateRow(id,'Vendor invoice Number',num);
-    await ssComment(id,`[${VENDOR_NAME} — Invoice] $${val}${num?' | #'+num:''}`);
-    const inv=document.getElementById('inv-f-'+pfx+'-'+id).files[0];
-    if(inv){const fd=new FormData();fd.append('file',inv,inv.name);await fetch('https://ss-proxy.zkranich.workers.dev/sheets/'+SHEET_ID+'/rows/'+id+'/attachments',{method:'POST',headers:{'Authorization':'Bearer '+SS_TOKEN},body:fd});}
-    const key=pfx+'-'+id,cpf=pendingCompPhotos[key]||[];
-    for(const f of cpf){const fd=new FormData();fd.append('file',f,f.name);await fetch('https://ss-proxy.zkranich.workers.dev/sheets/'+SHEET_ID+'/rows/'+id+'/attachments',{method:'POST',headers:{'Authorization':'Bearer '+SS_TOKEN},body:fd});}
-    pendingCompPhotos[key]=[];
-    // Keep amount and invoice # visible as readonly after submit
-    const amtEl=document.getElementById('inv-a-'+pfx+'-'+id);
-    amtEl.value=val;amtEl.readOnly=true;amtEl.style.background='var(--paper)';amtEl.style.color='var(--c-dowork)';amtEl.style.fontWeight='600';
-    const numEl=document.getElementById('inv-n-'+pfx+'-'+id);
-    if(num){numEl.value=num;numEl.readOnly=true;numEl.style.background='var(--paper)';numEl.style.color='var(--c-dowork)';numEl.style.fontWeight='600';}
-    ok.textContent=`✓ Invoice submitted — $${val}${num?' | #'+num:''}`;ok.classList.add('on');
-    // Auto-update Vendor Next Step to Need Invoice
-    await ssUpdateRow(id,'Vendor Next Step','08. Need Invoice');
-  }catch{er.classList.add('on');}btn.disabled=false;btn.textContent='Submit Invoice & Photos';
-}
+
 function initMap(){
-  if(leafMap)return;
-  leafMap=L.map('map').setView([42.90,-85.70],10);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'©OSM ©CARTO',maxZoom:19}).addTo(leafMap);
+  if(gMap)return;
+  const mapEl=document.getElementById('map');
+  gMap=new google.maps.Map(mapEl,{center:{lat:42.90,lng:-85.70},zoom:10,mapTypeControl:false,streetViewControl:false,fullscreenControl:false,styles:[{featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]}]});
+  const infoWin=new google.maps.InfoWindow();
   const grp={};VISIBLE_JOBS.forEach(j=>{const k=j.lat+','+j.lng;(grp[k]=grp[k]||[]).push(j);});
   Object.values(grp).forEach(jobs=>{
     const reg=REGIONS[jobs[0].region],color=reg?reg.color:'#666',cnt=jobs.length;
-    const icon=L.divIcon({className:'',html:`<div style="background:${color};color:white;width:${cnt>1?34:24}px;height:${cnt>1?34:24}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:${cnt>1?11:9}px;font-weight:500;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.25)">${cnt>1?cnt:'●'}</div>`,iconSize:[cnt>1?34:24,cnt>1?34:24],iconAnchor:[cnt>1?17:12,cnt>1?17:12]});
-    const m=L.marker([jobs[0].lat,jobs[0].lng],{icon}).addTo(leafMap);
-    m.bindPopup(`<div style="min-width:190px">${jobs.map(j=>`<div style="padding:4px 0;border-bottom:1px solid #eee;font-family:sans-serif"><div style="font-family:monospace;font-size:10px;color:#888">#${j.proj}</div><div style="font-size:12px;font-weight:500">${j.name}</div></div>`).join('')}</div>`,{maxWidth:250});
+    const pin=document.createElement('div');
+    pin.style.cssText=`background:${color};color:white;width:${cnt>1?34:24}px;height:${cnt>1?34:24}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:${cnt>1?11:9}px;font-weight:500;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,.25);cursor:pointer`;
+    pin.textContent=cnt>1?cnt:'●';
+    const m=new google.maps.marker.AdvancedMarkerElement({position:{lat:jobs[0].lat,lng:jobs[0].lng},map:gMap,content:pin});
+    const html=`<div style="min-width:190px">${jobs.map(j=>`<div style="padding:4px 0;border-bottom:1px solid #eee;font-family:sans-serif"><div style="font-family:monospace;font-size:10px;color:#888">#${j.proj}</div><div style="font-size:12px;font-weight:500">${j.name}</div></div>`).join('')}</div>`;
+    m.addListener('click',()=>{infoWin.setContent(html);infoWin.open(gMap,m);});
     jobs.forEach(j=>mapMarkers[j.id]=m);
   });
   const tabs=document.getElementById('region-tabs'),panels=document.getElementById('region-panels');
@@ -744,10 +772,11 @@ function switchRegion(key,btn){
   document.querySelectorAll('.rtab').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('.geo-region-panel').forEach(p=>p.classList.remove('active'));
   btn.classList.add('active');document.getElementById('rp-'+key).classList.add('active');
+  if(!gMap)return;
   const jobs=VISIBLE_JOBS.filter(j=>j.region===key);
-  if(leafMap&&jobs.length)leafMap.flyToBounds(L.latLngBounds(jobs.map(j=>[j.lat,j.lng])),{padding:[40,40],maxZoom:13,duration:0.8});
+  if(jobs.length){const bounds=new google.maps.LatLngBounds();jobs.forEach(j=>bounds.extend({lat:j.lat,lng:j.lng}));gMap.fitBounds(bounds,{top:40,right:40,bottom:40,left:40});if(jobs.length===1)gMap.setZoom(13);}
 }
-function flyTo(id){const j=JOBS.find(x=>x.id===id);if(!j||!leafMap)return;leafMap.flyTo([j.lat,j.lng],15,{duration:0.9});mapMarkers[id]?.openPopup();}
+function flyTo(id){const j=JOBS.find(x=>x.id===id);if(!j||!gMap)return;gMap.panTo({lat:j.lat,lng:j.lng});gMap.setZoom(15);mapMarkers[id]?.content?.click?.();}
 function changeMonth(d){calDate=new Date(calDate.getFullYear(),calDate.getMonth()+d,1);renderCal();}
 function renderCal(){
   const y=calDate.getFullYear(),m=calDate.getMonth();
@@ -781,17 +810,123 @@ function renderCal(){
   }).join('');
 }
 function goToJob(id){showView('jobs',document.querySelector('.tab-btn'));setTimeout(()=>{const el=document.getElementById('jc-all-'+id);if(el){el.classList.add('open');el.scrollIntoView({behavior:'smooth',block:'center'});loadAtt(id,'all');}},80);}
-function buildEstimates(){
-  const estJobs=VISIBLE_JOBS.filter(j=>j.step.includes('01.')||j.step.includes('02.'));
-  document.getElementById('est-count').textContent=estJobs.length;
-  const list=document.getElementById('job-list-est'),empty=document.getElementById('est-empty');
-  if(!estJobs.length){list.innerHTML='';empty.style.display='block';return;}empty.style.display='none';list.innerHTML=estJobs.map(j=>buildCard(j,'est')).join('');
-}
 function openModal(url){document.getElementById('modal-img').src=url;document.getElementById('img-modal').classList.add('on');}
 function closeModal(){document.getElementById('img-modal').classList.remove('on');}
-async function init(){await loadJobs();if(!JOBS.length)return;await loadAllDiscussionCounts();buildAllStats();renderJobList();renderCal();buildEstimates();primeSeenState();}
+
+/* ── GLOBAL SEARCH ── */
+let searchQuery='';
+function handleSearch(val){
+  searchQuery=val.trim().toLowerCase();
+  document.getElementById('search-clear').style.display=searchQuery?'block':'none';
+  applySearch();
+}
+function clearSearch(){
+  document.getElementById('global-search').value='';
+  searchQuery='';
+  document.getElementById('search-clear').style.display='none';
+  document.getElementById('search-count').style.display='none';
+  applySearch();
+  document.getElementById('global-search').focus();
+}
+function jobMatchesSearch(j){
+  if(!searchQuery)return true;
+  const q=searchQuery;
+  const cust=(getCustomer(j.store)||'').toLowerCase();
+  return (j.name||'').toLowerCase().includes(q)||
+    (j.store||'').toLowerCase().includes(q)||
+    (j.address||'').toLowerCase().includes(q)||
+    (j.trade||'').toLowerCase().includes(q)||
+    (j.proj||'').toLowerCase().includes(q)||
+    (j.pm||'').toLowerCase().includes(q)||
+    (j.scope||'').toLowerCase().includes(q)||
+    cust.includes(q);
+}
+function applySearch(){
+  const countEl=document.getElementById('search-count');
+  // Jobs tab
+  let f;if(activeFilter==='all')f=VISIBLE_JOBS;else if(activeFilter==='07.')f=VISIBLE_JOBS.filter(j=>j.step.includes('07.')||j.step.includes('08.'));else f=VISIBLE_JOBS.filter(j=>j.step.includes(activeFilter));
+  const filtered=f.filter(jobMatchesSearch);
+  const list=document.getElementById('job-list-all'),empty=document.getElementById('jobs-empty');
+  if(!filtered.length){list.innerHTML='';empty.style.display='block';empty.textContent=searchQuery?'No jobs match your search.':'No jobs in this category.';}
+  else{empty.style.display='none';list.innerHTML=filtered.map(j=>buildCard(j,'all')).join('');}
+  // Count badge
+  if(searchQuery){countEl.style.display='block';countEl.textContent=filtered.length+' result'+(filtered.length!==1?'s':'');}
+  else{countEl.style.display='none';}
+  // Stores tab
+  buildStoresViewFiltered();
+}
+function buildStoresViewFiltered(){
+  const container=document.getElementById('store-list'),empty=document.getElementById('stores-empty');
+  const jobs=VISIBLE_JOBS.filter(jobMatchesSearch);
+  if(!jobs.length){container.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  const groups={};
+  jobs.forEach(j=>{const key=j.store||'Other';if(!groups[key])groups[key]=[];groups[key].push(j);});
+  const sorted=Object.keys(groups).sort();
+  container.innerHTML=sorted.map(store=>{
+    const sj=groups[store],addr=sj[0].address||'',customer=getCustomer(store)||'',gid='store-'+store.replace(/\W+/g,'-');
+    return `<div class="store-group" id="${gid}">
+      <div class="store-group-hdr${searchQuery?' open':''}" onclick="toggleStoreGroup('${gid}')">
+        <div class="store-group-info">
+          <div class="store-group-name">${esc(store)}${customer?' <span style="font-family:var(--font);font-size:12px;font-weight:400;color:var(--ink3)">· '+customer+'</span>':''}</div>
+          <div class="store-group-addr">${esc(addr)}</div>
+        </div>
+        <span class="store-group-count">${sj.length} WO${sj.length!==1?'s':''}</span>
+        <svg class="store-group-chev" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div class="store-group-body${searchQuery?' open':''}" id="${gid}-body">${sj.map(j=>buildCard(j,'store')).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+async function init(){await loadJobs();if(!JOBS.length)return;await loadAllDiscussionCounts();buildAllStats();renderJobList();renderCal();primeSeenState();}
 init();
 </script>
-<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}</script>
+<script>
+// ── PUSH NOTIFICATIONS ──
+const VAPID_PUBLIC_KEY='BFcIRz3U260xoH71RJJZZaoWCpFhY-2KFai-DmUBGvGDmxK9aLt8Yw0gztIb0r6y2mxjgGqYyamcLi-SETOJRuo';
+const PUSH_ENDPOINT='https://ss-proxy.zkranich.workers.dev/push/subscribe';
+
+function urlBase64ToUint8Array(b){
+  const p=b.replace(/-/g,'+').replace(/_/g,'/');
+  const r=atob(p.padEnd(p.length+(4-p.length%4)%4,'='));
+  return Uint8Array.from([...r].map(c=>c.charCodeAt(0)));
+}
+
+async function registerPush(reg){
+  try{
+    // Check existing subscription first
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    // Send subscription to our Worker to store it
+    await fetch(PUSH_ENDPOINT,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SS_TOKEN},
+      body:JSON.stringify({subscription:sub,vendor:VENDOR_NAME,sheetId:SHEET_ID})
+    });
+    console.log('[Push] Subscribed OK');
+  }catch(e){console.warn('[Push] Subscribe failed:',e);}
+}
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(async reg=>{
+    // Only ask for push permission if not already decided
+    if(Notification.permission==='granted'){
+      registerPush(reg);
+    } else if(Notification.permission!=='denied'){
+      // Wait a moment after load so the UI is settled before asking
+      setTimeout(async()=>{
+        const perm=await Notification.requestPermission();
+        if(perm==='granted') registerPush(reg);
+      }, 3000);
+    }
+  }).catch(()=>{});
+}
+</script>
 </body>
 </html>
