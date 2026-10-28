@@ -831,7 +831,8 @@ async function initMap(){
     jobs.forEach(j=>{j.lat=coords.lat;j.lng=coords.lng;});
 
     const cnt=jobs.length;
-    const reg=REGIONS[jobs[0].region],color=reg?reg.color:'#4B5563';
+    const step=jobs[0].step||'';
+    const color=step.includes('01.')?'#9E9E9E':step.includes('04.')?'#2E7D32':REGIONS[jobs[0].region]?.color||'#4B5563';
     const pin=document.createElement('div');
     pin.style.cssText=`background:${color};color:white;width:${cnt>1?36:26}px;height:${cnt>1?36:26}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:${cnt>1?12:10}px;font-weight:600;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer;transition:transform .15s`;
     pin.textContent=cnt>1?cnt:'●';
